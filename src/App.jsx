@@ -8,11 +8,13 @@ const [selectedTF, setSelectedTF] = useState('1h');
 const [selectedAsset, setSelectedAsset] = useState('BTCUSD');
 const [price, setPrice] = useState('--');
 const [signal, setSignal] = useState('HOLD');
-
+const [accountBalance, setAccountBalance] = useState(1000);
+const [riskPercent, setRiskPercent] = useState(1);
+const [lotSize, setLotSize] = useState(0.01);
 const [confidence, setConfidence] = useState(55);
 const [trendStrength, setTrendStrength] = useState('Weak');
 const [accountSize, setAccountSize] = useState(1000);
-const [riskPercent, setRiskPercent] = useState(1);
+
 const [positionSize, setPositionSize] = useState('--');
 const [rsi, setRsi] = useState('--');
 const [ema20, setEma20] = useState('--');
@@ -79,19 +81,24 @@ const data4h = await generateSignal('4h', selectedAsset);
   setResistance(data.resistance.toFixed(0));
 
   setEntry(Number(data.entry).toFixed(0));
-  setTarget(data.target === '--' ? '--' : Number(data.target).toFixed(0));
-  setStopLoss(data.stopLoss === '--' ? '--' : Number(data.stopLoss).toFixed(0));
-setTp1(
-  data.takeProfit1 === '--'
-    ? '--'
-    : Number(data.takeProfit1).toFixed(0)
-);
+setTarget(data.target === '--' ? '--' : Number(data.target).toFixed(0));
+setStopLoss(data.stopLoss === '--' ? '--' : Number(data.stopLoss).toFixed(0));
+setTp1(data.takeProfit1 === '--' ? '--' : Number(data.takeProfit1).toFixed(0));
+setTp2(data.takeProfit2 === '--' ? '--' : Number(data.takeProfit2).toFixed(0));
 
-setTp2(
-  data.takeProfit2 === '--'
-    ? '--'
-    : Number(data.takeProfit2).toFixed(0)
-);
+// MT5 Lot Size Calculation
+const riskAmount = accountBalance * (riskPercent / 100);
+const stopDistance = Math.abs(data.entry - data.stopLoss);
+
+let calculatedLot = 0.01;
+
+if (selectedAsset === 'XAUUSD') {
+  calculatedLot = riskAmount / (stopDistance * 100);
+} else {
+  calculatedLot = riskAmount / (stopDistance * 1000);
+}
+
+setLotSize(Math.max(0.01, Number(calculatedLot.toFixed(2))));
 
 if (data.stopLoss !== '--') {
   const riskAmount = (accountSize * riskPercent) / 100;
@@ -231,22 +238,23 @@ if (
   data.confidence >= 75
 ) {
   fetch('https://trade-backend-0z0o.onrender.com/alert', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      signal: data.signal,
-      confidence: data.confidence,
-      price: data.price,
-      entry: data.entry,
-      target: data.target,
-      stopLoss: data.stopLoss,
-      takeProfit1: data.takeProfit1,
-      takeProfit2: data.takeProfit2,
-      timeframe: selectedTF,
-    }),
-  }).catch(console.error);
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    symbol: selectedAsset,
+    signal: data.signal,
+    confidence: data.confidence,
+    price: data.price,
+    entry: data.entry,
+    target: data.target,
+    stopLoss: data.stopLoss,
+    takeProfit1: data.takeProfit1,
+    takeProfit2: data.takeProfit2,
+    timeframe: selectedTF,
+  }),
+}).catch(console.error);
 }
 
 setIsAnalyzing(false);
@@ -1124,6 +1132,79 @@ fontFamily: 'Arial',
       marginBottom: '14px',
     }}
   >
+    <div
+  style={{
+    background: '#081421',
+    border: '1px solid #1f3b57',
+    borderRadius: '14px',
+    padding: '16px',
+    marginTop: '16px',
+    marginBottom: '16px',
+  }}
+>
+  <h3 style={{ marginTop: 0 }}>MT5 Lot Size</h3>
+
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '12px',
+    }}
+  >
+    <div
+      style={{
+        background: '#0b1b2b',
+        border: '1px solid #1f3b57',
+        borderRadius: '12px',
+        padding: '12px',
+      }}
+    >
+      <div style={{ color: '#94a3b8', fontSize: '12px' }}>Balance</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+        ${accountBalance}
+      </div>
+    </div>
+
+    <div
+      style={{
+        background: '#0b1b2b',
+        border: '1px solid #1f3b57',
+        borderRadius: '12px',
+        padding: '12px',
+      }}
+    >
+      <div style={{ color: '#94a3b8', fontSize: '12px' }}>Risk</div>
+      <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+        {riskPercent}%
+      </div>
+    </div>
+
+    <div
+      style={{
+        background: '#06281d',
+        border: '1px solid #14532d',
+        borderRadius: '12px',
+        padding: '12px',
+      }}
+    >
+      <div style={{ color: '#86efac', fontSize: '12px' }}>Suggested Lot</div>
+      <div
+        style={{
+          fontSize: '22px',
+          fontWeight: 'bold',
+          color: '#22c55e',
+        }}
+      >
+        {lotSize}
+      </div>
+    </div>
+  </div>
+
+  <div style={{ color: '#94a3b8', fontSize: '13px', marginTop: '12px' }}>
+    MT5 lot size suggestion for {selectedAsset} based on your account balance
+    and stop-loss distance.
+  </div>
+</div>
     {aiReasoning}
   </div>
 
@@ -1169,10 +1250,10 @@ fontFamily: 'Arial',
     <h3>BTCUSDT TradingView Chart</h3>
     <AdvancedRealTimeChart
       theme="dark"
-      symbol={
-  selectedAsset === 'BTCUSDT'
-    ? 'BINANCE:BTCUSDT'
-    : 'BINANCE:XAUTUSDT'
+ symbol={
+  selectedAsset === 'BTCUSD'
+    ? 'BITSTAMP:BTCUSD'
+    : 'OANDA:XAUUSD'
 }
       interval={chartInterval}
       width="100%"
