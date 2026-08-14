@@ -28,15 +28,16 @@ const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
 app.post('/alert', async (req, res) => {
   try {
     const {
-      signal,
-      confidence,
-      price,
-      entry,
-      stopLoss,
-      takeProfit1,
-      takeProfit2,
-      timeframe,
-    } = req.body;
+  symbol,
+  signal,
+  confidence,
+  price,
+  entry,
+  stopLoss,
+  takeProfit1,
+  takeProfit2,
+  timeframe,
+} = req.body;
 
     // Send only strong signals
     if (
@@ -49,15 +50,16 @@ app.post('/alert', async (req, res) => {
 
       if (now - lastSent > ALERT_COOLDOWN_MS) {
         const message =
-          '🚨 Binance Futures Pro Alert\\n\\n' +
-          'Timeframe: ' + (timeframe || '1h') + '\\n' +
-          'Signal: ' + signal + '\\n' +
-          'Confidence: ' + confidence + '%\\n' +
-          'Price: $' + price + '\\n' +
-          'Entry: $' + entry + '\\n' +
-          'TP1: $' + takeProfit1 + '\\n' +
-          'TP2: $' + takeProfit2 + '\\n' +
-          'Stop-loss: $' + stopLoss;
+  '🚨 MT5 Trading Alert\\n\\n' +
+  'Asset: ' + symbol + '\\n' +
+  'Timeframe: ' + (timeframe || '1h') + '\\n' +
+  'Signal: ' + signal + '\\n' +
+  'Confidence: ' + confidence + '%\\n' +
+  'Price: $' + price + '\\n' +
+  'Entry: $' + entry + '\\n' +
+  'TP1: $' + takeProfit1 + '\\n' +
+  'TP2: $' + takeProfit2 + '\\n' +
+  'Stop-loss: $' + stopLoss;
 
         await bot.sendMessage(CHAT_ID, message);
 

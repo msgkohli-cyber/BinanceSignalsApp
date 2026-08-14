@@ -5,9 +5,10 @@ import { generateSignal } from './signalEngine';
 
 function App() {
 const [selectedTF, setSelectedTF] = useState('1h');
-
+const [selectedAsset, setSelectedAsset] = useState('BTCUSD');
 const [price, setPrice] = useState('--');
 const [signal, setSignal] = useState('HOLD');
+
 const [confidence, setConfidence] = useState(55);
 const [trendStrength, setTrendStrength] = useState('Weak');
 const [accountSize, setAccountSize] = useState(1000);
@@ -50,11 +51,11 @@ const loadSignal = async (tf = selectedTF) => {
 
 await new Promise(resolve => setTimeout(resolve, 1500));
 try {
-const data = await generateSignal(tf);
+const data = await generateSignal(tf, selectedAsset);
 
-  const data15 = await generateSignal('15m');
-  const data1h = await generateSignal('1h');
-  const data4h = await generateSignal('4h');
+  const data15 = await generateSignal('15m', selectedAsset);
+const data1h = await generateSignal('1h', selectedAsset);
+const data4h = await generateSignal('4h', selectedAsset);
 
   setTf15m(data15.signal);
   setTf1h(data1h.signal);
@@ -225,8 +226,11 @@ setHistory(prev =>
   ].slice(0, 10)
 );
 
-if (true) {
-    fetch('https://trade-backend-0z0o.onrender.com/alert', {
+if (
+  (data.signal === 'STRONG BUY' || data.signal === 'STRONG SELL') &&
+  data.confidence >= 75
+) {
+  fetch('https://trade-backend-0z0o.onrender.com/alert', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -262,7 +266,7 @@ useEffect(() => {
   }, 30000);
 
   return () => clearInterval(timer);
-}, [selectedTF]);
+}, [selectedTF, selectedAsset]);
 useEffect(() => {
   const loadTicker = async () => {
     try {
@@ -348,7 +352,43 @@ fontFamily: 'Arial',
       border: '1px solid #1f3b57',
     }}
   >
-    <h2>BTCUSDT Perpetual</h2>
+    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+  <button
+    onClick={() => setSelectedAsset('BTCUSD')}
+    style={{
+      padding: '10px 18px',
+      borderRadius: '10px',
+      border: '1px solid #1f3b57',
+      background: selectedAsset === 'BTCUSDT' ? '#2563eb' : '#0b1b2b',
+      color: 'white',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+    }}
+  >
+    Bitcoin
+  </button>
+
+  <button
+   onClick={() => setSelectedAsset('XAUUSD')}
+    style={{
+      padding: '10px 18px',
+      borderRadius: '10px',
+      border: '1px solid #1f3b57',
+      background: selectedAsset === 'XAUTUSDT' ? '#d97706' : '#0b1b2b',
+      color: 'white',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+    }}
+  >
+    Gold (XAUT)
+  </button>
+</div>
+
+    <h2>
+  {selectedAsset === 'BTCUSD'
+  ? 'BTCUSD'
+  : 'XAUUSD (Gold)'}
+</h2>
     <div style={{ fontSize: '42px', fontWeight: 'bold' }}>
       ${price}
       <div
@@ -1129,7 +1169,11 @@ fontFamily: 'Arial',
     <h3>BTCUSDT TradingView Chart</h3>
     <AdvancedRealTimeChart
       theme="dark"
-      symbol="BINANCE:BTCUSDT"
+      symbol={
+  selectedAsset === 'BTCUSDT'
+    ? 'BINANCE:BTCUSDT'
+    : 'BINANCE:XAUTUSDT'
+}
       interval={chartInterval}
       width="100%"
       height={500}

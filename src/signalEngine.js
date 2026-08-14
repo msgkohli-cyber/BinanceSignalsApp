@@ -1,8 +1,8 @@
 import { RSI, EMA, MACD } from 'technicalindicators';
 
-async function getTF(interval) {
+async function getTF(interval, symbol = 'BTCUSDT') {
 const res = await fetch(
-`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=250`
+  `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=250`
 );
 
 const candles = await res.json();
@@ -124,12 +124,15 @@ pattern,
 };
 }
 
-export async function generateSignal(timeframe = '1h') {
-const current = await getTF(timeframe);
+export async function generateSignal(
+  timeframe = '1h',
+  symbol = 'BTCUSDT'
+) {
+const current = await getTF(timeframe, symbol);
 
-const tf15 = await getTF('15m');
-const tf1h = await getTF('1h');
-const tf4h = await getTF('4h');
+const tf15 = await getTF('15m', symbol);
+const tf1h = await getTF('1h', symbol);
+const tf4h = await getTF('4h', symbol);
 
 let buyVotes =
   (tf15.signal === 'BUY' || tf15.signal === 'STRONG BUY' ? 1 : 0) +
