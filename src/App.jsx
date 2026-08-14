@@ -212,19 +212,20 @@ setAiReasoning(reasoning);
 setKeyWarning(warning);
 setNextAction(action);
 
-  setHistory(prev =>
-    [
-      {
-        time: new Date().toLocaleTimeString(),
-        timeframe: tf,
-        signal: data.signal,
-        confidence: data.confidence,
-        entry: Number(data.entry).toFixed(0),
-      },
-      ...prev,
-    ].slice(0, 10)
-  );
-  if (
+setHistory(prev =>
+  [
+    {
+      time: new Date().toLocaleTimeString(),
+      timeframe: tf,
+      signal: data.signal,
+      confidence: data.confidence,
+      entry: Number(data.entry).toFixed(0),
+    },
+    ...prev,
+  ].slice(0, 10)
+);
+
+if (
   (data.signal === 'STRONG BUY' || data.signal === 'STRONG SELL') &&
   data.confidence >= 75
 ) {
@@ -246,9 +247,9 @@ setNextAction(action);
     }),
   }).catch(console.error);
 }
-  setIsAnalyzing(false);
-} 
-catch (err) {
+
+setIsAnalyzing(false);
+} catch (err) {
   console.error(err);
   setIsAnalyzing(false);
   alert('Failed to generate AI signal');
