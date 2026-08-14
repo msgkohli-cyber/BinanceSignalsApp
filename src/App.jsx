@@ -229,7 +229,7 @@ if (
   (data.signal === 'STRONG BUY' || data.signal === 'STRONG SELL') &&
   data.confidence >= 75
 ) {
-  fetch('http://localhost:3001/alert', {
+  fetch('https://trade-backend-0z0o.onrender.com/alert', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
