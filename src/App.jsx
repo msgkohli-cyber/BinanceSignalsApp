@@ -225,11 +225,8 @@ setHistory(prev =>
   ].slice(0, 10)
 );
 
-if (
-  (data.signal === 'STRONG BUY' || data.signal === 'STRONG SELL') &&
-  data.confidence >= 75
-) {
-  fetch('https://trade-backend-0z0o.onrender.com/alert', {
+if (true) {
+    fetch('https://trade-backend-0z0o.onrender.com/alert', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
