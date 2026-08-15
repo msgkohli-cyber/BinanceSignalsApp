@@ -53,15 +53,11 @@ const loadSignal = async (tf = selectedTF) => {
 
 await new Promise(resolve => setTimeout(resolve, 1500));
 try {
-const data = await generateSignal(tf, selectedAsset);
+const data = await generateSignal(tf);
 
-  const data15 = await generateSignal('15m', selectedAsset);
-const data1h = await generateSignal('1h', selectedAsset);
-const data4h = await generateSignal('4h', selectedAsset);
-
-  setTf15m(data15.signal);
-  setTf1h(data1h.signal);
-  setTf4h(data4h.signal);
+setTf15m(data.tf15m);
+setTf1h(data.tf1h);
+setTf4h(data.tf4h);
 
   setPrice(Number(data.price).toLocaleString());
   setSignal(data.signal);
@@ -258,10 +254,11 @@ if (
 }
 
 setIsAnalyzing(false);
-} catch (err) {
-  console.error(err);
+} 
+catch (err) {
+  console.error('AI SIGNAL ERROR:', err);
   setIsAnalyzing(false);
-  alert('Failed to generate AI signal');
+  throw err;
 }
 
 };
@@ -302,23 +299,42 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 useEffect(() => {
-  const ws = new WebSocket(
-    'wss://stream.binance.com:9443/ws/btcusdt@trade'
-  );
+  // BTCUSD ke liye Binance websocket
+  if (selectedAsset === 'BTCUSD') {
+    const ws = new WebSocket(
+      'wss://stream.binance.com:9443/ws/btcusdt@trade'
+    );
 
-  ws.onmessage = event => {
-    const data = JSON.parse(event.data);
-    setPrice(Number(data.p).toLocaleString());
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setPrice(Number(data.p).toLocaleString());
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    return () => ws.close();
+  }
+
+  // XAUUSD ke liye price signal engine se
+  const loadGoldPrice = async () => {
+    try {
+      const data = await generateSignal(selectedTF, 'XAUUSD');
+      setPrice(Number(data.price).toLocaleString());
+    } catch (err) {
+  console.error('AI SIGNAL ERROR:', err);
+  alert(err.message || 'Failed to generate AI signal');
+  setIsAnalyzing(false);
+}
   };
 
-  ws.onerror = err => {
-    console.error('WebSocket error:', err);
-  };
+  loadGoldPrice();
 
-  return () => {
-    ws.close();
-  };
-}, []);
+  const timer = setInterval(loadGoldPrice, 30000);
+
+  return () => clearInterval(timer);
+}, [selectedAsset, selectedTF]);
 
 const signalColor =
   signal === 'STRONG BUY'
@@ -367,7 +383,7 @@ fontFamily: 'Arial',
       padding: '10px 18px',
       borderRadius: '10px',
       border: '1px solid #1f3b57',
-      background: selectedAsset === 'BTCUSDT' ? '#2563eb' : '#0b1b2b',
+      background: selectedAsset === 'BTCUSD' ? '#2563eb' : '#0b1b2b',
       color: 'white',
       fontWeight: 'bold',
       cursor: 'pointer',
@@ -382,13 +398,13 @@ fontFamily: 'Arial',
       padding: '10px 18px',
       borderRadius: '10px',
       border: '1px solid #1f3b57',
-      background: selectedAsset === 'XAUTUSDT' ? '#d97706' : '#0b1b2b',
+      background: selectedAsset === 'XAUUSD' ? '#d97706' : '#0b1b2b',
       color: 'white',
       fontWeight: 'bold',
       cursor: 'pointer',
     }}
   >
-    Gold (XAUT)
+    Gold (XAU)
   </button>
 </div>
 
@@ -1247,7 +1263,7 @@ fontFamily: 'Arial',
       border: '1px solid #1f3b57',
     }}
   >
-    <h3>BTCUSDT TradingView Chart</h3>
+    <h3>BTCUSD TradingView Chart</h3>
     <AdvancedRealTimeChart
       theme="dark"
  symbol={

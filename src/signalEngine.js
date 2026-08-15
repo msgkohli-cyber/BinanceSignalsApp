@@ -1,49 +1,14 @@
 import { RSI, EMA, MACD } from 'technicalindicators';
 
-const TWELVE_API_KEY = '342c003bfa6c4f8ea8edde74927ae77b';
+async function getTF(interval) {
+  const res = await fetch(
+    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=250`
+  );
 
-async function getTF(interval, symbol = 'BTCUSD') {
-  let candles = [];
+  const candles = await res.json();
 
-  // =========================
-  // BTCUSD -> Binance
-  // =========================
-  if (symbol === 'BTCUSD') {
-    const res = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=250`
-    );
-
-    candles = await res.json();
-  }
-
-  // =========================
-  // XAUUSD -> Twelve Data
-  // =========================
-  else if (symbol === 'XAUUSD') {
-    const tfMap = {
-      '15m': '15min',
-      '1h': '1h',
-      '4h': '4h',
-    };
-
-    const res = await fetch(
-      `https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${tfMap[interval]}&outputsize=250&apikey=${TWELVE_API_KEY}`
-    );
-
-    const json = await res.json();
-
-    if (!json.values) {
-      throw new Error('XAUUSD data not available');
-    }
-
-    candles = json.values.reverse().map(c => [
-      c.datetime,
-      c.open,
-      c.high,
-      c.low,
-      c.close,
-      c.volume || 0,
-    ]);
+  if (!Array.isArray(candles)) {
+    throw new Error('BTCUSDT data not available');
   }
 
   const closes = candles.map(c => Number(c[4]));
@@ -144,12 +109,12 @@ async function getTF(interval, symbol = 'BTCUSD') {
   };
 }
 
-export async function generateSignal(timeframe = '1h', symbol = 'BTCUSD') {
-  const current = await getTF(timeframe, symbol);
+export async function generateSignal(timeframe = '1h') {
+  const current = await getTF(timeframe);
 
-  const tf15 = await getTF('15m', symbol);
-  const tf1h = await getTF('1h', symbol);
-  const tf4h = await getTF('4h', symbol);
+  const tf15 = await getTF('15m');
+  const tf1h = await getTF('1h');
+  const tf4h = await getTF('4h');
 
   let buyVotes =
     (tf15.signal === 'BUY' || tf15.signal === 'STRONG BUY' ? 1 : 0) +
