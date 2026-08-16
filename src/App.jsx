@@ -14,7 +14,8 @@ const [lotSize, setLotSize] = useState(0.01);
 const [confidence, setConfidence] = useState(55);
 const [trendStrength, setTrendStrength] = useState('Weak');
 const [accountSize, setAccountSize] = useState(1000);
-
+const [entryZoneLow, setEntryZoneLow] = useState('--');
+const [entryZoneHigh, setEntryZoneHigh] = useState('--');
 const [positionSize, setPositionSize] = useState('--');
 const [rsi, setRsi] = useState('--');
 const [ema20, setEma20] = useState('--');
@@ -77,6 +78,8 @@ setTf4h(data.tf4h);
   setResistance(data.resistance.toFixed(0));
 
   setEntry(Number(data.entry).toFixed(0));
+  setEntryZoneLow(Number(data.entryZoneLow).toFixed(0));
+setEntryZoneHigh(Number(data.entryZoneHigh).toFixed(0));
 setTarget(data.target === '--' ? '--' : Number(data.target).toFixed(0));
 setStopLoss(data.stopLoss === '--' ? '--' : Number(data.stopLoss).toFixed(0));
 setTp1(data.takeProfit1 === '--' ? '--' : Number(data.takeProfit1).toFixed(0));
@@ -96,30 +99,41 @@ if (selectedAsset === 'XAUUSD') {
 
 setLotSize(Math.max(0.01, Number(calculatedLot.toFixed(2))));
 
-if (data.stopLoss !== '--') {
+// ===== Position Size + RR + Profit/Loss =====
+if (
+  data.stopLoss !== '--' &&
+  data.takeProfit2 !== '--'
+) {
   const riskAmount = (accountSize * riskPercent) / 100;
   const stopDistance = Math.abs(Number(data.entry) - Number(data.stopLoss));
 
   if (stopDistance > 0) {
     const qty = riskAmount / stopDistance;
+
+    // Position size
     setPositionSize(qty.toFixed(4));
+
+    // RR calculation (TP2 ke basis par)
+    const reward = Math.abs(Number(data.takeProfit2) - Number(data.entry));
+    const risk = stopDistance;
+
+    setRrRatio(`1:${(reward / risk).toFixed(2)}`);
+
+    // Potential Profit / Loss
+    setPotentialProfit((reward * qty).toFixed(2));
+    setPotentialLoss((risk * qty).toFixed(2));
   } else {
     setPositionSize('--');
-  }
-} else {
-  setPositionSize('--');
-}
-if (data.target !== '--' && data.stopLoss !== '--') {
-  const reward = Math.abs(Number(data.target) - Number(data.entry));
-  const risk = Math.abs(Number(data.entry) - Number(data.stopLoss));
-
-  if (risk > 0) {
-    setRrRatio(`1:${(reward / risk).toFixed(2)}`);
-  } else {
     setRrRatio('--');
+    setPotentialProfit('--');
+    setPotentialLoss('--');
   }
 } else {
+  // HOLD signal ya invalid setup
+  setPositionSize('--');
   setRrRatio('--');
+  setPotentialProfit('--');
+  setPotentialLoss('--');
 }
 
 let quality = 'C';
@@ -136,25 +150,7 @@ if (
 } else {
   quality = 'C';
 }
-if (
-  data.takeProfit2 !== '--' &&
-  data.stopLoss !== '--' &&
-  positionSize !== '--'
-) {
-  const qty = Number(positionSize);
 
-  const profit =
-    Math.abs(Number(data.takeProfit2) - Number(data.entry)) * qty;
-
-  const loss =
-    Math.abs(Number(data.entry) - Number(data.stopLoss)) * qty;
-
-  setPotentialProfit(profit.toFixed(2));
-  setPotentialLoss(loss.toFixed(2));
-} else {
-  setPotentialProfit('--');
-  setPotentialLoss('--');
-}
 
 setSignalQuality(quality);
 setLastAiUpdate(new Date().toLocaleTimeString());
@@ -230,26 +226,44 @@ setHistory(prev =>
 );
 
 if (
-  (data.signal === 'STRONG BUY' || data.signal === 'STRONG SELL') &&
-  data.confidence >= 75
+  data.confidence >= 70 &&
+  (data.signal === 'BUY' ||
+    data.signal === 'STRONG BUY' ||
+    data.signal === 'SELL' ||
+    data.signal === 'STRONG SELL')
 ) {
+  const managedStopLoss = getManagedStopLoss(
+  data,
+  data.price
+);
   fetch('https://trade-backend-0z0o.onrender.com/alert', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
   },
+
   body: JSON.stringify({
-    symbol: selectedAsset,
-    signal: data.signal,
-    confidence: data.confidence,
-    price: data.price,
-    entry: data.entry,
-    target: data.target,
-    stopLoss: data.stopLoss,
-    takeProfit1: data.takeProfit1,
-    takeProfit2: data.takeProfit2,
-    timeframe: selectedTF,
-  }),
+  symbol: selectedAsset,
+  signal: data.signal,
+  confidence: data.confidence,
+  price: data.price,
+
+  // Best entry
+  entry: data.entry,
+
+  // Entry zone
+  entryZoneLow: data.entryZoneLow,
+  entryZoneHigh: data.entryZoneHigh,
+
+  target: data.target,
+  stopLoss: managedStopLoss,
+  takeProfit1: data.takeProfit1,
+  takeProfit2: data.takeProfit2,
+  timeframe: selectedTF,
+
+  // Break-even rule
+  breakeven: 'Move SL to Entry after TP1',
+}),
 }).catch(console.error);
 }
 
@@ -752,6 +766,9 @@ fontFamily: 'Arial',
     >
       <div style={{ color: '#94a3b8', fontSize: '12px' }}>Entry</div>
       <div style={{ fontSize: '20px', fontWeight: 'bold' }}>${entry}</div>
+      <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '6px' }}>
+  Zone: ${entryZoneLow} - ${entryZoneHigh}
+</div>
     </div>
 
     <div

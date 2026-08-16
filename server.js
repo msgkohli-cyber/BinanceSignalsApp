@@ -24,7 +24,49 @@ const bot = new TelegramBot(BOT_TOKEN, { polling: false });
 // =========================
 const lastAlerts = new Map();
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+// ===== Break-even Stop Loss Manager =====
 
+function getManagedStopLoss(data, currentPrice) {
+  if (!data || !Number.isFinite(Number(currentPrice))) {
+    return data?.stopLoss;
+  }
+
+  const price = Number(currentPrice);
+  const entry = Number(data.entry);
+  const tp1 = Number(data.takeProfit1);
+  const originalSL = Number(data.stopLoss);
+
+  if (
+    !Number.isFinite(entry) ||
+    !Number.isFinite(tp1) ||
+    !Number.isFinite(originalSL)
+  ) {
+    return data.stopLoss;
+  }
+
+  const isBuy =
+    data.signal === 'BUY' ||
+    data.signal === 'STRONG BUY';
+
+  const isSell =
+    data.signal === 'SELL' ||
+    data.signal === 'STRONG SELL';
+
+  // ===== BUY =====
+  // TP1 hit -> SL automatically moves to Entry
+  if (isBuy && price >= tp1) {
+    return entry;
+  }
+
+  // ===== SELL =====
+  // TP1 hit -> SL automatically moves to Entry
+  if (isSell && price <= tp1) {
+    return entry;
+  }
+
+  // TP1 not hit -> original SL
+  return originalSL;
+}
 app.post('/alert', async (req, res) => {
   try {
     const {
@@ -49,17 +91,22 @@ app.post('/alert', async (req, res) => {
       const lastSent = lastAlerts.get(key) || 0;
 
       if (now - lastSent > ALERT_COOLDOWN_MS) {
-        const message =
-  '🚨 MT5 Trading Alert\\n\\n' +
-  'Asset: ' + symbol + '\\n' +
-  'Timeframe: ' + (timeframe || '1h') + '\\n' +
-  'Signal: ' + signal + '\\n' +
-  'Confidence: ' + confidence + '%\\n' +
-  'Price: $' + price + '\\n' +
-  'Entry: $' + entry + '\\n' +
-  'TP1: $' + takeProfit1 + '\\n' +
-  'TP2: $' + takeProfit2 + '\\n' +
-  'Stop-loss: $' + stopLoss;
+        const message = `
+Binance Futures Pro Alert
+
+Asset: ${symbol}
+Timeframe: ${timeframe}
+Signal: ${signal}
+Confidence: ${confidence}%
+
+Current Price: $${price}
+Best Entry: $${entry}
+Entry Zone: $${entryZoneLow} - $${entryZoneHigh}
+
+TP1: $${takeProfit1}
+TP2: $${takeProfit2}
+Stop-loss: $${stopLoss}
+`;
 
         await bot.sendMessage(CHAT_ID, message);
 
